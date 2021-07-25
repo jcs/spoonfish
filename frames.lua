@@ -17,6 +17,7 @@ sdorfehs.frame_focus = function(frame_id)
 end
 
 sdorfehs.frame_cycle = function(frame_id)
+  sdorfehs.log.d("cycling frame " .. frame_id)
   local wof = sdorfehs.windows_on_frame(frame_id)
   if wof[1] ~= nil then
     -- move this top window to the bottom of the stack

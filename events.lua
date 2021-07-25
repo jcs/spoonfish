@@ -59,7 +59,7 @@ sdorfehs.watch_hswindow = function(hswin)
   end
 
   sdorfehs.log.i(" watching window: " .. hswin:title())
-  local watcher = hswin:newWatcher(sdorfehs.window_event, {})
+  local watcher = hswin:newWatcher(sdorfehs.window_event, { id = hswin:id() })
   watcher:start({
     sdorfehs.events.elementDestroyed,
     sdorfehs.events.windowResized,
@@ -74,14 +74,19 @@ sdorfehs.watch_hswindow = function(hswin)
   sdorfehs.frame_capture(frame_id, hswin)
 end
 
-sdorfehs.window_event = function(win, event, watcher)
+sdorfehs.window_event = function(hswin, event, watcher, info)
   if not sdorfehs.is_initialized then
     return
   end
 
   if event == sdorfehs.events.elementDestroyed then
+    local win = sdorfehs.window_find_by_id(info["id"])
+    sdorfehs.log.i("window destroyed: " .. hs.inspect(win))
     watcher:stop()
+    if win ~= nil then
+      sdorfehs.window_remove(win)
+    end
   else
-    hs.alert.show("window event: " .. event)
+    -- hs.alert.show("window event: " .. event)
   end
 end

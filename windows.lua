@@ -1,7 +1,17 @@
 -- find a window object in s.windows from a hs.window object
 sdorfehs.window_find_by_hswindow = function(win)
-  for _, w in sdorfehs.windows do
+  for _, w in pairs(sdorfehs.windows) do
     if w["win"] == win then
+      return w
+    end
+  end
+
+  return nil
+end
+
+sdorfehs.window_find_by_id = function(id)
+  for _, w in pairs(sdorfehs.windows) do
+    if w["win"]:id() == id then
       return w
     end
   end
@@ -51,13 +61,26 @@ sdorfehs.window_restack = function(win, pos)
   sdorfehs.windows = new_stack
 end
 
+sdorfehs.window_remove = function(win)
+  local frame_id = win["frame"]
+  sdorfehs.window_restack(win, sdorfehs.position.REMOVE)
+  if frame_id ~= 0 then
+    sdorfehs.frame_cycle(frame_id)
+  end
+end
+
 sdorfehs.window_hide = function(win)
-  -- TODO: just move offscreen or something?
-  win["win"]:minimize()
+  local win_frame = win["win"]:frame()
+  win["restore_pos"] = win_frame
+  local screen_frame = win["win"]:screen():fullFrame()
+  local off_rect = hs.geometry.rect(screen_frame.w + 10, screen_frame.h + 10,
+    win_frame.w, win_frame.h)
+  win["win"]:move(off_rect, nil, false, 0)
 end
 
 sdorfehs.window_show = function(win)
   win["win"]:unminimize()
+  -- don't move, since window_reframe will probably do so
 end
 
 sdorfehs.windows_on_frame = function(frame_id)

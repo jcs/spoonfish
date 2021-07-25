@@ -28,6 +28,7 @@ sdorfehs.direction = {
 sdorfehs.position = {
   FRONT = 1,
   BACK = 2,
+  REMOVE = 3,
 }
 
 -- windows, array by window stack order
@@ -59,6 +60,8 @@ sdorfehs.start = function()
   for i = 1, #apps do
     s.watch_app(apps[i])
   end
+
+  sdorfehs.is_initialized = true
 
   -- XXX
   s.outline(s.frames[s.frame_current])
