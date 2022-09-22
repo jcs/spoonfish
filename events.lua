@@ -1,3 +1,17 @@
+-- callback for watch_app() when a window has been created
+sdorfehs.app_event = function(element, event)
+  if event == sdorfehs.events.windowCreated then
+    if element:isStandard() then
+      sdorfehs.log.i("new window created: " .. element:title())
+      sdorfehs.watch_hswindow(element)
+    end
+  elseif event == sdorfehs.events.focusedWindowChanged then
+    sdorfehs.log.d("window focus changed: " .. element:title())
+    -- TODO: handle window change
+  end
+end
+
+-- callback for .app_watcher, informing about a new or closed app
 sdorfehs.app_meta_event = function(name, event, app)
   if event == hs.application.watcher.launched then
     sdorfehs.watch_app(app)
@@ -14,6 +28,7 @@ sdorfehs.app_meta_event = function(name, event, app)
   end
 end
 
+-- watch an application to be notififed when it creates a new window
 sdorfehs.watch_app = function(app)
   if sdorfehs.apps[app:pid()] then
     return
@@ -41,18 +56,7 @@ sdorfehs.watch_app = function(app)
   end
 end
 
-sdorfehs.app_event = function(element, event)
-  if event == sdorfehs.events.windowCreated then
-    if element:isStandard() then
-      sdorfehs.log.i("new window created: " .. element:title())
-      sdorfehs.watch_hswindow(element)
-    end
-  elseif event == sdorfehs.events.focusedWindowChanged then
-    sdorfehs.log.d("window focus changed: " .. element:title())
-    -- TODO: handle window change
-  end
-end
-
+-- watch a hs.window object to be notified when it is closed or moved
 sdorfehs.watch_hswindow = function(hswin)
   if not hswin:isStandard() then
     return
@@ -66,14 +70,10 @@ sdorfehs.watch_hswindow = function(hswin)
     sdorfehs.events.windowMoved,
   })
 
-  -- if there are no windows on this frame, become the front-runner
-  local frame_id = 0
-  if #sdorfehs.windows_on_frame(sdorfehs.frame_current) == 0 then
-    frame_id = sdorfehs.frame_current
-  end
-  sdorfehs.frame_capture(frame_id, hswin)
+  sdorfehs.frame_capture(sdorfehs.frame_current, hswin)
 end
 
+-- callback for watch_hswindow() when a window has been closed or moved
 sdorfehs.window_event = function(hswin, event, watcher, info)
   if not sdorfehs.is_initialized then
     return

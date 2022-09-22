@@ -1,4 +1,4 @@
--- find a window object in s.windows from a hs.window object
+-- find a window table object from an hs.window object
 sdorfehs.window_find_by_hswindow = function(win)
   for _, w in pairs(sdorfehs.windows) do
     if w["win"] == win then
@@ -9,6 +9,7 @@ sdorfehs.window_find_by_hswindow = function(win)
   return nil
 end
 
+-- find a window table object from its hs.window id
 sdorfehs.window_find_by_id = function(id)
   for _, w in pairs(sdorfehs.windows) do
     if w["win"]:id() == id then
@@ -19,6 +20,7 @@ sdorfehs.window_find_by_id = function(id)
   return nil
 end
 
+-- move a window to fit its frame, or hide it if in frame 0
 sdorfehs.window_reframe = function(win)
   if win == nil or win == {} then
     error("bogus window passed")
@@ -26,19 +28,50 @@ sdorfehs.window_reframe = function(win)
   end
 
   if win["frame"] == 0 then
-    sdorfehs.window_hide(win)
-  else
-    local frame = sdorfehs.frames[win["frame"]]
-    if frame == nil then
-      error("no frame for window " .. win["win"]:title() .. ": " ..
-        hs.inspect(win))
-      return
-    end
+    error("bogus frame for win " .. win["title"])
+    return
+  end
 
-    win["win"]:move(sdorfehs.inset(frame, sdorfehs.gap), nil, true, 0)
+  local frame = sdorfehs.frames[win["frame"]]
+  if frame == nil then
+    error("no frame for window " .. win["win"]:title() .. ": " ..
+      hs.inspect(win))
+    return
+  end
+
+  local iframe = sdorfehs.inset(frame, sdorfehs.gap)
+
+  if sdorfehs.frame_find(win["frame"], sdorfehs.direction.LEFT) ~= win["frame"] then
+    iframe.x = iframe.x - (sdorfehs.gap / 2)
+    iframe.w = iframe.w + (sdorfehs.gap / 2)
+  end
+
+  if sdorfehs.frame_find(win["frame"], sdorfehs.direction.UP) ~= win["frame"] then
+    iframe.y = iframe.y - (sdorfehs.gap / 2)
+    iframe.h = iframe.h + (sdorfehs.gap / 2)
+  end
+
+  if sdorfehs.frame_find(win["frame"], sdorfehs.direction.RIGHT) ~= win["frame"] then
+    iframe.w = iframe.w + (sdorfehs.gap / 2)
+  end
+
+  if sdorfehs.frame_find(win["frame"], sdorfehs.direction.DOWN) ~= win["frame"] then
+    iframe.h = iframe.h + (sdorfehs.gap / 2)
+  end
+
+  win["win"]:move(iframe, nil, true, 0.25)
+end
+
+-- remove a window from the stack and bring up a new window in the frame
+sdorfehs.window_remove = function(win)
+  local frame_id = win["frame"]
+  sdorfehs.window_restack(win, sdorfehs.position.REMOVE)
+  if frame_id ~= 0 then
+    sdorfehs.frame_cycle(frame_id)
   end
 end
 
+-- move a window to the front or back of the window stack (or remove it)
 sdorfehs.window_restack = function(win, pos)
   if pos == nil then
     error("invalid position argument")
@@ -61,32 +94,21 @@ sdorfehs.window_restack = function(win, pos)
   sdorfehs.windows = new_stack
 end
 
-sdorfehs.window_remove = function(win)
-  local frame_id = win["frame"]
-  sdorfehs.window_restack(win, sdorfehs.position.REMOVE)
-  if frame_id ~= 0 then
-    sdorfehs.frame_cycle(frame_id)
+-- restore a window but don't bother moving to its frame, window_reframe will
+sdorfehs.window_show = function(win)
+  if win["win"]:isMinimized() then
+    win["win"]:unminimize()
   end
 end
 
-sdorfehs.window_hide = function(win)
-  local win_frame = win["win"]:frame()
-  win["restore_pos"] = win_frame
-  local screen_frame = win["win"]:screen():fullFrame()
-  local off_rect = hs.geometry.rect(screen_frame.w + 10, screen_frame.h + 10,
-    win_frame.w, win_frame.h)
-  win["win"]:move(off_rect, nil, false, 0)
-end
-
-sdorfehs.window_show = function(win)
-  win["win"]:unminimize()
-  -- don't move, since window_reframe will probably do so
-end
-
-sdorfehs.windows_on_frame = function(frame_id)
+-- return a table of windows not first in any frame
+sdorfehs.windows_not_visible = function()
   local wins = {}
+  local topwins = {}
   for _, w in ipairs(sdorfehs.windows) do
-    if w["frame"] == frame_id then
+    if topwins[w["frame"]] == nil then
+      topwins[w["frame"]] = w
+    else
       table.insert(wins, w)
     end
   end

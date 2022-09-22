@@ -3,96 +3,8 @@ sdorfehs.frame_s = function(frame)
     frame.h .. "}"
 end
 
-sdorfehs.frame_focus = function(frame_id)
-  sdorfehs.frame_previous = sdorfehs.frame_current
-  sdorfehs.frame_current = frame_id
-
-  local wof = sdorfehs.windows_on_frame(frame_id)
-  if wof[1] ~= nil then
-    sdorfehs.window_reframe(wof[1])
-    wof[1]["win"]:focus()
-  end
-
-  sdorfehs.outline(sdorfehs.frames[frame_id])
-end
-
-sdorfehs.frame_cycle = function(frame_id)
-  sdorfehs.log.d("cycling frame " .. frame_id)
-  local wof = sdorfehs.windows_on_frame(frame_id)
-  if wof[1] ~= nil then
-    -- move this top window to the bottom of the stack
-    sdorfehs.window_hide(wof[1])
-    wof[1]["frame"] = 0
-    sdorfehs.window_restack(wof[1], sdorfehs.position.BACK)
-  end
-
-  -- find the first window that is not in a frame and bring it forth
-  local wnof = sdorfehs.windows_on_frame(0)
-  if wnof[1] ~= nil then
-    wnof[1]["frame"] = frame_id
-    sdorfehs.frame_raise_window(frame_id, wnof[1])
-  end
-end
-
-sdorfehs.frame_split = function(frame_id, vertical)
-  local old_frame = sdorfehs.frames[frame_id]
-
-  -- halve current frame
-  if vertical then
-    sdorfehs.frames[frame_id] = hs.geometry.rect(
-      old_frame.x,
-      old_frame.y,
-      math.floor(old_frame.w / 2),
-      old_frame.h
-    )
-  else
-    sdorfehs.frames[frame_id] = hs.geometry.rect(
-      old_frame.x,
-      old_frame.y,
-      old_frame.w,
-      math.floor(old_frame.h / 2)
-    )
-  end
-
-  -- reframe all windows in that old frame
-  for _, w in ipairs(sdorfehs.windows) do
-    if w["frame"] == frame_id then
-      sdorfehs.window_reframe(w)
-    end
-  end
-
-  local new_frame = table.count(sdorfehs.frames) + 1
-
-  if vertical then
-    sdorfehs.frames[new_frame] = hs.geometry.rect(
-      sdorfehs.frames[frame_id].x + sdorfehs.frames[frame_id].w,
-      sdorfehs.frames[frame_id].y,
-      old_frame.w - sdorfehs.frames[frame_id].w,
-      sdorfehs.frames[frame_id].h
-    )
-  else
-    sdorfehs.frames[new_frame] = hs.geometry.rect(
-      sdorfehs.frames[frame_id].x,
-      sdorfehs.frames[frame_id].y + sdorfehs.frames[frame_id].h,
-      sdorfehs.frames[frame_id].w,
-      old_frame.h - sdorfehs.frames[frame_id].h
-    )
-  end
-
-  sdorfehs.frame_focus(frame_id)
-
-  -- we'll probably want to go to this frame on tab
-  sdorfehs.frame_previous = new_frame
-end
-
-sdorfehs.frame_vertical_split = function(frame_id)
-  return sdorfehs.frame_split(frame_id, true)
-end
-
-sdorfehs.frame_horizontal_split = function(frame_id)
-  return sdorfehs.frame_split(frame_id, false)
-end
-
+-- take control of a new hs.window and resize it to a particular frame
+-- return a window table object
 sdorfehs.frame_capture = function(frame_id, hswin)
   local win = {
     ["win"] = hswin,
@@ -100,9 +12,44 @@ sdorfehs.frame_capture = function(frame_id, hswin)
   }
   table.insert(sdorfehs.windows, win)
   sdorfehs.window_reframe(win)
+  sdorfehs.window_restack(win, 1)
   return win
 end
 
+-- move the top window of a frame to the bottom of the stack, raise the next
+-- available or last window to the top
+sdorfehs._frame_cycle = function(frame_id, reverse)
+  local wnf = sdorfehs.windows_not_visible()
+
+  if table.count(wnf) == 0 then
+    sdorfehs.log.d("no hidden windows to cycle")
+    return
+  end
+
+  local fwin = sdorfehs.frame_top_window(frame_id)
+  if fwin then
+    -- move this top window to the bottom of the stack
+    sdorfehs.window_restack(fwin, sdorfehs.position.BACK)
+  end
+
+  -- find the first window that is not in a frame and bring it forth
+  local cwin = wnf[1]
+  if reverse then
+    cwin = wnf[table.count(wnf)]
+  end
+  if cwin ~= nil then
+    cwin["frame"] = frame_id
+    sdorfehs.frame_raise_window(frame_id, cwin)
+  end
+end
+sdorfehs.frame_cycle = function(frame_id)
+  sdorfehs._frame_cycle(frame_id, false)
+end
+sdorfehs.frame_reverse_cycle = function(frame_id)
+  sdorfehs._frame_cycle(frame_id, true)
+end
+
+-- find a frame relative to frame_id in the direction dir
 sdorfehs.frame_find = function(frame_id, dir)
   local cur = sdorfehs.frames[frame_id]
 
@@ -159,13 +106,38 @@ sdorfehs.frame_find = function(frame_id, dir)
       end
     end
   else
-    error("frame_find: bogus direction " .. dir)
+    error("frame_find: bogus direction")
   end
 
   -- nothing applicable, keep the current frame
   return frame_id
 end
 
+-- give focus to frame and raise its active window
+sdorfehs.frame_focus = function(frame_id)
+  if sdorfehs.frames[frame_id] == nil then
+    error("bogus frame " .. frame_id)
+    return
+  end
+
+  sdorfehs.frame_previous = sdorfehs.frame_current
+  sdorfehs.frame_current = frame_id
+
+  local wof = sdorfehs.frame_top_window(frame_id)
+  if wof ~= nil then
+    sdorfehs.window_reframe(wof)
+    wof["win"]:focus()
+  end
+
+  sdorfehs.outline(sdorfehs.frames[frame_id])
+end
+
+-- split a frame horizontally
+sdorfehs.frame_horizontal_split = function(frame_id)
+  return sdorfehs.frame_split(frame_id, false)
+end
+
+-- raise a window in a given frame, assigning it to that frame
 sdorfehs.frame_raise_window = function(frame_id, win)
   sdorfehs.window_reframe(win)
   sdorfehs.window_show(win)
@@ -173,19 +145,102 @@ sdorfehs.frame_raise_window = function(frame_id, win)
   sdorfehs.window_restack(win, sdorfehs.position.FRONT)
 end
 
-sdorfehs.frame_next_window = function(frame_id)
-  local found_first = nil
+-- split a frame vertically or horizontally
+sdorfehs.frame_split = function(frame_id, vertical)
+  local old_frame = sdorfehs.frames[frame_id]
 
+  -- halve current frame
+  if vertical then
+    sdorfehs.frames[frame_id] = hs.geometry.rect(
+      old_frame.x,
+      old_frame.y,
+      math.floor(old_frame.w / 2),
+      old_frame.h
+    )
+  else
+    sdorfehs.frames[frame_id] = hs.geometry.rect(
+      old_frame.x,
+      old_frame.y,
+      old_frame.w,
+      math.floor(old_frame.h / 2)
+    )
+  end
+
+  -- reframe all windows in that old frame
   for _, w in ipairs(sdorfehs.windows) do
     if w["frame"] == frame_id then
-      if found_first then
-        return w
-      end
-
-      found_first = w
+      sdorfehs.window_reframe(w)
     end
   end
 
-  -- this is the only window, or there are none
-  return found_first
+  local new_frame = table.count(sdorfehs.frames) + 1
+
+  if vertical then
+    sdorfehs.frames[new_frame] = hs.geometry.rect(
+      sdorfehs.frames[frame_id].x + sdorfehs.frames[frame_id].w,
+      sdorfehs.frames[frame_id].y,
+      old_frame.w - sdorfehs.frames[frame_id].w,
+      sdorfehs.frames[frame_id].h
+    )
+  else
+    sdorfehs.frames[new_frame] = hs.geometry.rect(
+      sdorfehs.frames[frame_id].x,
+      sdorfehs.frames[frame_id].y + sdorfehs.frames[frame_id].h,
+      sdorfehs.frames[frame_id].w,
+      old_frame.h - sdorfehs.frames[frame_id].h
+    )
+  end
+
+  sdorfehs.frame_focus(frame_id)
+
+  -- we'll probably want to go to this frame on tab
+  sdorfehs.frame_previous = new_frame
+end
+
+-- swap the front-most windows of two frames
+sdorfehs.frame_swap = function(frame_id_from, frame_id_to)
+  print("TODO")
+  -- TODO
+end
+
+-- remove current frame
+sdorfehs.frame_remove = function()
+  if table.count(sdorfehs.frames) == 1 then
+    return
+  end
+
+  local id_removing = sdorfehs.frame_current
+
+  -- reframe all windows in the current frame and renumber higher frames
+  for _, w in ipairs(sdorfehs.windows) do
+    if w["frame"] == id_removing then
+      w["frame"] = 0
+      sdorfehs.window_reframe(w)
+    elseif w["frame"] > id_removing then
+      w["frame"] = w["frame"] - 1
+    end
+  end
+
+  -- shift other frame numbers down
+  table.remove(sdorfehs.frames, id_removing)
+
+  if sdorfehs.frame_previous > id_removing then
+    sdorfehs.frame_previous = sdorfehs.frame_previous - 1
+  end
+
+  sdorfehs.frame_focus(sdorfehs.frame_previous)
+end
+
+-- split a frame vertically
+sdorfehs.frame_vertical_split = function(frame_id)
+  return sdorfehs.frame_split(frame_id, true)
+end
+
+-- return the first window in this frame
+sdorfehs.frame_top_window = function(frame_id)
+  for _, w in ipairs(sdorfehs.windows) do
+    if w["frame"] == frame_id then
+      return w
+    end
+  end
 end

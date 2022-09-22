@@ -36,9 +36,9 @@ sdorfehs.outline = function(rect)
   end
 
   sdorfehs._outline = hs.drawing.rectangle(rect)
-  sdorfehs._outline:setStrokeColor({ ["hex"] = "#ff0000" })
+  sdorfehs._outline:setStrokeColor({ ["hex"] = sdorfehs.outline_color })
   sdorfehs._outline:setFill(false)
-  sdorfehs._outline:setStrokeWidth(5)
+  sdorfehs._outline:setStrokeWidth(sdorfehs.outline_size)
   sdorfehs._outline:show()
 --  sdorfehs.outline_timer = hs.timer.doAfter(sdorfehs.outline_secs, function()
 --    if sdorfehs._outline ~= nil then
@@ -47,4 +47,11 @@ sdorfehs.outline = function(rect)
 --    end
 --    sdorfehs.outline_timer = nil
 --  end)
+end
+
+sdorfehs.dump_wins = function(wins)
+  for i, w in pairs(wins) do
+    print("win[" .. i .. "] frame[" .. w["frame"] .. "] title:" ..
+      w["win"]:title())
+  end
 end

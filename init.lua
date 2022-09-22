@@ -6,12 +6,12 @@ require("sdorfehs/events")
 require("sdorfehs/utils")
 
 -- configuration:
-sdorfehs.gap = 10
+sdorfehs.gap = 20
 sdorfehs.outline_secs = 2
-sdorfehs.apps_to_watch = "^iTerm"
+sdorfehs.apps_to_watch = "^kitty"
+sdorfehs.outline_color = "#ff7f50"
+sdorfehs.outline_size = 5
 
-sdorfehs.is_initialized = false
-sdorfehs.events = hs.uielement.watcher
 
 -- frame rects, keyed by frame number
 sdorfehs.frames = {}
@@ -31,6 +31,9 @@ sdorfehs.position = {
   REMOVE = 3,
 }
 
+sdorfehs.is_initialized = false
+sdorfehs.events = hs.uielement.watcher
+
 -- windows, array by window stack order
 sdorfehs.windows = {}
 
@@ -45,8 +48,6 @@ sdorfehs.start = function()
 
   s.menu = hs.menubar.new()
   s.menu:setTitle("-")
-
-  s.modal = hs.hotkey.modal.new("ctrl", "a")
 
   -- initial frame
   s.frames[1] = hs.screen.primaryScreen():frame()
@@ -63,86 +64,114 @@ sdorfehs.start = function()
 
   sdorfehs.is_initialized = true
 
-  -- XXX
-  s.outline(s.frames[s.frame_current])
+  s.in_modal = false
+  s.send_modal = false
 
-  function s.modal:entered()
-    s.menu:setTitle("◉")
-  end
+  s.eventtap = hs.eventtap.new({ hs.eventtap.event.types.keyDown }, function(event)
+    local key = hs.keycodes.map[event:getKeyCode()]
+    local flags = event:getFlags()
+    local ctrl = flags:containExactly({ "ctrl" })
+    local nomod = flags:containExactly({}) or flags:containExactly({ "shift" })
 
-  function s.modal:exited()
+    -- not sure why arrow keys come through with fn down
+    if key == "up" or key == "down" or key == "left" or key == "right" then
+      if flags:containExactly({ "ctrl", "fn" }) then
+        ctrl = true
+      elseif flags:containExactly({ "fn" }) then
+        nomod = true
+      end
+    end
+
+    if event:getType() ~= hs.eventtap.event.types.keyDown then
+      return false
+    end
+
+    if not s.in_modal then
+      if ctrl and key == "a" then
+        if s.send_modal then
+          s.send_modal = false
+          return false
+        end
+
+        s.menu:setTitle("◉")
+        s.in_modal = true
+        return true
+      end
+
+      -- not in modal, let event happen as normal
+      return false
+    end
+
+    -- in-modal key bindings
+    s.in_modal = false
     s.menu:setTitle("-")
-  end
 
-  s.modal:bind("", "escape", function()
-    s.modal:exit()
-  end)
+    print("in modal, key " .. key)
+    for k,v in pairs(flags) do
+      print(k)
+    end
 
-  s.modal:bind("", "tab", function()
-    s.frame_focus(s.frame_previous)
-    s.modal:exit()
-  end)
+    if flags:containExactly({ "shift" }) then
+      key = string.upper(key)
+    end
 
-  s.modal:bind("", "left", function()
-    s.frame_focus(s.frame_find(s.frame_current, s.direction.LEFT))
-    s.modal:exit()
-  end)
-  s.modal:bind("control", "left", function()
-    -- TODO
-    s.modal:exit()
-  end)
+    if nomod then
+      if key == "tab" then
+        s.frame_focus(s.frame_previous)
 
-  s.modal:bind("", "right", function()
-    s.frame_focus(s.frame_find(s.frame_current, s.direction.RIGHT))
-    s.modal:exit()
-  end)
+      elseif key == "left" then
+        s.frame_focus(s.frame_find(s.frame_current, s.direction.LEFT))
+      elseif key == "right" then
+        s.frame_focus(s.frame_find(s.frame_current, s.direction.RIGHT))
+      elseif key == "up" then
+        s.frame_focus(s.frame_find(s.frame_current, s.direction.UP))
+      elseif key == "down" then
+        s.frame_focus(s.frame_find(s.frame_current, s.direction.DOWN))
 
-  s.modal:bind("", "up", function()
-    s.frame_focus(s.frame_find(s.frame_current, s.direction.UP))
-    s.modal:exit()
-  end)
+      elseif key == "space" then
+        s.frame_cycle(s.frame_current)
 
-  s.modal:bind("", "down", function()
-    s.frame_focus(s.frame_find(s.frame_current, s.direction.DOWN))
-    s.modal:exit()
-  end)
+      elseif key == "a" then
+        s.send_modal = true
+        hs.eventtap.keyStroke({ "ctrl" }, "a")
 
-  s.modal:bind("", "space", function()
-    s.frame_cycle(s.frame_current)
-    s.modal:exit()
-  end)
+      elseif key == "c" then
+        -- create terminal window
+        hs.osascript.applescript('tell application "iTerm4" to create window with default profile')
 
-  s.modal:bind("control", "space", function()
-    s.frame_cycle(s.frame_current)
-    s.modal:exit()
-  end)
+      elseif key == "p" then
+        s.frame_reverse_cycle(s.frame_current)
 
-  s.modal:bind("shift", "S", function()
-    s.frame_vertical_split(s.frame_current)
-    s.modal:exit()
-  end)
+      elseif key == "R" then
+        s.frame_remove(s.frame_current)
 
-  s.modal:bind("", "s", function()
-    s.frame_horizontal_split(s.frame_current)
-    s.modal:exit()
-  end)
+      elseif key == "s" then
+        s.frame_horizontal_split(s.frame_current)
+      elseif key == "S" then
+        s.frame_vertical_split(s.frame_current)
+      end
 
-  -- a: send a literal control+a
-  -- TODO: figure out how to do this with a modal not of control+a
-  s.modal:bind("", "a", function()
-    s.alert "sending a"
-    s.modal:exit()
-    s.modal.k:disable()
-    hs.eventtap.keyStroke({ "ctrl" }, "a")
-    hs.timer.usleep(10000)
-    s.modal.k:enable()
-  end)
+    elseif ctrl then
+      if key == "space" then
+        s.frame_cycle(s.frame_current)
 
-  -- c: create terminal window
-  s.modal:bind("", "c", function()
-    hs.osascript.applescript('tell application "iTerm2" to create window with default profile')
-    s.modal:exit()
-  end)
+      elseif key == "left" then
+        s.frame_swap(s.frame_current, s.frame_find(s.frame_current, s.direction.LEFT))
+        print("swapping left")
+      elseif key == "right" then
+        s.frame_swap(s.frame_current, s.frame_find(s.frame_current, s.direction.RIGHT))
+      elseif key == "up" then
+        s.frame_swap(s.frame_current, s.frame_find(s.frame_current, s.direction.UP))
+      elseif key == "down" then
+        s.frame_swap(s.frame_current, s.frame_find(s.frame_current, s.direction.DOWN))
+      end
+    end
+
+    -- swallow event
+    return true
+  end):start()
+
+  sdorfehs.frame_focus(1)
 end
 
 return sdorfehs
