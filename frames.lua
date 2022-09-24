@@ -18,11 +18,13 @@ end
 
 -- move the top window of a frame to the bottom of the stack, raise the next
 -- available or last window to the top
-sdorfehs._frame_cycle = function(frame_id, reverse)
+sdorfehs._frame_cycle = function(frame_id, reverse, complain)
   local wnf = sdorfehs.windows_not_visible()
 
   if table.count(wnf) == 0 then
-    sdorfehs.log.d("no hidden windows to cycle")
+    if complain then
+      sdorfehs.frame_message(sdorfehs.frame_current, "No more windows")
+    end
     return
   end
 
@@ -42,11 +44,11 @@ sdorfehs._frame_cycle = function(frame_id, reverse)
     sdorfehs.frame_raise_window(frame_id, cwin)
   end
 end
-sdorfehs.frame_cycle = function(frame_id)
-  sdorfehs._frame_cycle(frame_id, false)
+sdorfehs.frame_cycle = function(frame_id, complain)
+  sdorfehs._frame_cycle(frame_id, false, complain)
 end
-sdorfehs.frame_reverse_cycle = function(frame_id)
-  sdorfehs._frame_cycle(frame_id, true)
+sdorfehs.frame_reverse_cycle = function(frame_id, complain)
+  sdorfehs._frame_cycle(frame_id, true, complain)
 end
 
 -- find a frame relative to frame_id in the direction dir
@@ -113,23 +115,53 @@ sdorfehs.frame_find = function(frame_id, dir)
   return frame_id
 end
 
+sdorfehs.frame_with_gap = function(frame_id)
+  local iframe = sdorfehs.inset(sdorfehs.frames[frame_id], sdorfehs.gap)
+
+  if sdorfehs.frame_find(frame_id, sdorfehs.direction.LEFT) ~= frame_id then
+    iframe.x = iframe.x - (sdorfehs.gap / 2)
+    iframe.w = iframe.w + (sdorfehs.gap / 2)
+  end
+
+  if sdorfehs.frame_find(frame_id, sdorfehs.direction.UP) ~= frame_id then
+    iframe.y = iframe.y - (sdorfehs.gap / 2)
+    iframe.h = iframe.h + (sdorfehs.gap / 2)
+  end
+
+  if sdorfehs.frame_find(frame_id, sdorfehs.direction.RIGHT) ~= frame_id then
+    iframe.w = iframe.w + (sdorfehs.gap / 2)
+  end
+
+  if sdorfehs.frame_find(frame_id, sdorfehs.direction.DOWN) ~= frame_id then
+    iframe.h = iframe.h + (sdorfehs.gap / 2)
+  end
+
+  return iframe
+end
+
 -- give focus to frame and raise its active window
-sdorfehs.frame_focus = function(frame_id)
+sdorfehs.frame_focus = function(frame_id, raise)
   if sdorfehs.frames[frame_id] == nil then
     error("bogus frame " .. frame_id)
     return
   end
 
-  sdorfehs.frame_previous = sdorfehs.frame_current
-  sdorfehs.frame_current = frame_id
-
+  local fc = sdorfehs.frame_current
   local wof = sdorfehs.frame_top_window(frame_id)
   if wof ~= nil then
     sdorfehs.window_reframe(wof)
-    wof["win"]:focus()
+    if raise then
+      wof["win"]:focus()
+    end
+    sdorfehs.frame_outline(frame_id)
   end
 
-  sdorfehs.outline(sdorfehs.frames[frame_id])
+  if frame_id ~= fc then
+    sdorfehs.frame_current = frame_id
+    sdorfehs.frame_previous = fc
+
+    sdorfehs.frame_message(frame_id, "Frame " .. frame_id)
+  end
 end
 
 -- split a frame horizontally
@@ -143,6 +175,7 @@ sdorfehs.frame_raise_window = function(frame_id, win)
   sdorfehs.window_show(win)
   win["win"]:focus()
   sdorfehs.window_restack(win, sdorfehs.position.FRONT)
+  sdorfehs.frame_outline(frame_id)
 end
 
 -- split a frame vertically or horizontally
@@ -191,16 +224,27 @@ sdorfehs.frame_split = function(frame_id, vertical)
     )
   end
 
-  sdorfehs.frame_focus(frame_id)
+  sdorfehs.frame_focus(frame_id, true)
 
   -- we'll probably want to go to this frame on tab
   sdorfehs.frame_previous = new_frame
+  sdorfehs.log.d(" after split, focused frame now " .. sdorfehs.frame_current .. ", previous " .. sdorfehs.frame_previous)
 end
 
 -- swap the front-most windows of two frames
 sdorfehs.frame_swap = function(frame_id_from, frame_id_to)
-  print("TODO")
-  -- TODO
+  local fwin = sdorfehs.frame_top_window(frame_id_from)
+  local twin = sdorfehs.frame_top_window(frame_id_to)
+
+  if fwin ~= nil then
+    fwin["frame"] = frame_id_to
+    sdorfehs.window_reframe(fwin)
+  end
+  if twin ~= nil then
+    twin["frame"] = frame_id_from
+    sdorfehs.window_reframe(twin)
+  end
+  sdorfehs.frame_focus(frame_id_to, true)
 end
 
 -- remove current frame
@@ -228,7 +272,7 @@ sdorfehs.frame_remove = function()
     sdorfehs.frame_previous = sdorfehs.frame_previous - 1
   end
 
-  sdorfehs.frame_focus(sdorfehs.frame_previous)
+  sdorfehs.frame_focus(sdorfehs.frame_previous, true)
 end
 
 -- split a frame vertically
@@ -243,4 +287,86 @@ sdorfehs.frame_top_window = function(frame_id)
       return w
     end
   end
+end
+
+sdorfehs.frame_message_timer = nil
+sdorfehs._frame_message = nil
+sdorfehs.frame_message = function(frame_id, message)
+  if sdorfehs.frame_message_timer ~= nil then
+    sdorfehs.frame_message_timer:stop()
+  end
+
+  if sdorfehs._frame_message ~= nil then
+    sdorfehs._frame_message:delete()
+    sdorfehs._frame_message = nil
+  end
+
+  local frame = sdorfehs.frames[frame_id]
+  if frame == nil then
+    return
+  end
+
+  local fontSize = 18
+  local textFrame = hs.drawing.getTextDrawingSize(message, { size = fontSize })
+  local lwidth = textFrame.w + 30
+  local lheight = textFrame.h + 6
+
+  sdorfehs._frame_message = hs.canvas.new {
+    x = frame.x + (frame.w / 2) - (lwidth / 2),
+    y = frame.y + (frame.h / 2) - (lheight / 2),
+    w = lwidth,
+    h = lheight,
+  }:level(hs.canvas.windowLevels.popUpMenu)
+
+  sdorfehs._frame_message[1] = {
+    id = "1",
+    type = "rectangle",
+    action = "fill",
+    center = { x = lwidth / 2, y = lheight / 2, },
+    fillColor = { green = 0, blue = 0, red = 0, alpha = 0.9 },
+    roundedRectRadii = { xRadius = 15, yRadius = 15 },
+  }
+  sdorfehs._frame_message[2] = {
+    id = "2",
+    type = "text",
+    frame = { x = 0, y = 3, h = "100%", w = "100%" },
+    textAlignment = "center",
+    textColor = { white = 1.0 },
+    textSize = fontSize,
+    text = message,
+  }
+
+  sdorfehs._frame_message:show()
+
+  sdorfehs.frame_message_timer = hs.timer.doAfter(sdorfehs.frame_message_secs,
+  function()
+    if sdorfehs._frame_message ~= nil then
+      sdorfehs._frame_message:delete()
+      sdorfehs._frame_message = nil
+    end
+    sdorfehs.frame_message_timer = nil
+  end)
+end
+
+sdorfehs._outline = nil
+sdorfehs.frame_outline = function(frame_id)
+  if sdorfehs._outline ~= nil then
+    sdorfehs._outline:delete()
+    sdorfehs._outline = nil
+  end
+
+  local frame = sdorfehs.frames[frame_id]
+  if frame == nil then
+    return
+  end
+
+  local iframe = sdorfehs.frame_with_gap(frame_id)
+  iframe = sdorfehs.inset(iframe, -1)
+
+  sdorfehs._outline = hs.drawing.rectangle(iframe)
+  sdorfehs._outline:setStrokeColor({ ["hex"] = sdorfehs.outline_color })
+  sdorfehs._outline:setFill(false)
+  sdorfehs._outline:setStrokeWidth(sdorfehs.outline_size)
+  sdorfehs._outline:setRoundedRectRadii(10, 10)
+  sdorfehs._outline:show()
 end

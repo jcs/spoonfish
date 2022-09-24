@@ -32,34 +32,8 @@ sdorfehs.window_reframe = function(win)
     return
   end
 
-  local frame = sdorfehs.frames[win["frame"]]
-  if frame == nil then
-    error("no frame for window " .. win["win"]:title() .. ": " ..
-      hs.inspect(win))
-    return
-  end
-
-  local iframe = sdorfehs.inset(frame, sdorfehs.gap)
-
-  if sdorfehs.frame_find(win["frame"], sdorfehs.direction.LEFT) ~= win["frame"] then
-    iframe.x = iframe.x - (sdorfehs.gap / 2)
-    iframe.w = iframe.w + (sdorfehs.gap / 2)
-  end
-
-  if sdorfehs.frame_find(win["frame"], sdorfehs.direction.UP) ~= win["frame"] then
-    iframe.y = iframe.y - (sdorfehs.gap / 2)
-    iframe.h = iframe.h + (sdorfehs.gap / 2)
-  end
-
-  if sdorfehs.frame_find(win["frame"], sdorfehs.direction.RIGHT) ~= win["frame"] then
-    iframe.w = iframe.w + (sdorfehs.gap / 2)
-  end
-
-  if sdorfehs.frame_find(win["frame"], sdorfehs.direction.DOWN) ~= win["frame"] then
-    iframe.h = iframe.h + (sdorfehs.gap / 2)
-  end
-
-  win["win"]:move(iframe, nil, true, 0.25)
+  local iframe = sdorfehs.frame_with_gap(win["frame"])
+  win["win"]:move(iframe, nil, true, 0)
 end
 
 -- remove a window from the stack and bring up a new window in the frame
@@ -67,7 +41,7 @@ sdorfehs.window_remove = function(win)
   local frame_id = win["frame"]
   sdorfehs.window_restack(win, sdorfehs.position.REMOVE)
   if frame_id ~= 0 then
-    sdorfehs.frame_cycle(frame_id)
+    sdorfehs.frame_cycle(frame_id, false)
   end
 end
 

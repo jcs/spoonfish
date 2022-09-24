@@ -1,13 +1,26 @@
 -- callback for watch_app() when a window has been created
+sdorfehs.ignore_events = false
 sdorfehs.app_event = function(element, event)
+  if sdorfehs.ignore_events then
+    return
+  end
+
   if event == sdorfehs.events.windowCreated then
     if element:isStandard() then
       sdorfehs.log.i("new window created: " .. element:title())
       sdorfehs.watch_hswindow(element)
     end
   elseif event == sdorfehs.events.focusedWindowChanged then
-    sdorfehs.log.d("window focus changed: " .. element:title())
-    -- TODO: handle window change
+    local win = sdorfehs.window_find_by_id(element:id())
+    if win ~= nil then
+      -- TODO: don't do this when it's in response to a window destroying
+      sdorfehs.frame_focus(win["frame"], false)
+    end
+  elseif event == sdorfehs.events.windowResized then
+    local win = sdorfehs.window_find_by_id(element:id())
+    if win ~= nil then
+      sdorfehs.window_reframe(win)
+    end
   end
 end
 
@@ -47,6 +60,8 @@ sdorfehs.watch_app = function(app)
   }
   watcher:start({
     sdorfehs.events.windowCreated,
+    sdorfehs.events.windowMoved,
+    sdorfehs.events.windowResized,
     sdorfehs.events.focusedWindowChanged,
   })
 
@@ -75,7 +90,7 @@ end
 
 -- callback for watch_hswindow() when a window has been closed or moved
 sdorfehs.window_event = function(hswin, event, watcher, info)
-  if not sdorfehs.is_initialized then
+  if not sdorfehs.initialized then
     return
   end
 
@@ -85,8 +100,9 @@ sdorfehs.window_event = function(hswin, event, watcher, info)
     watcher:stop()
     if win ~= nil then
       sdorfehs.window_remove(win)
+
+      -- stay on this frame
+      sdorfehs.frame_focus(win["frame"], false)
     end
-  else
-    -- hs.alert.show("window event: " .. event)
   end
 end

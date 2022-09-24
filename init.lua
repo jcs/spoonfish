@@ -7,10 +7,10 @@ require("sdorfehs/utils")
 
 -- configuration:
 sdorfehs.gap = 20
-sdorfehs.outline_secs = 2
 sdorfehs.apps_to_watch = "^kitty"
+sdorfehs.frame_message_secs = 1
 sdorfehs.outline_color = "#ff7f50"
-sdorfehs.outline_size = 5
+sdorfehs.outline_size = 8
 
 
 -- frame rects, keyed by frame number
@@ -31,7 +31,7 @@ sdorfehs.position = {
   REMOVE = 3,
 }
 
-sdorfehs.is_initialized = false
+sdorfehs.initialized = false
 sdorfehs.events = hs.uielement.watcher
 
 -- windows, array by window stack order
@@ -46,9 +46,6 @@ sdorfehs.start = function()
 
   s.log = hs.logger.new("sdorfehs", "debug")
 
-  s.menu = hs.menubar.new()
-  s.menu:setTitle("-")
-
   -- initial frame
   s.frames[1] = hs.screen.primaryScreen():frame()
 
@@ -62,7 +59,7 @@ sdorfehs.start = function()
     s.watch_app(apps[i])
   end
 
-  sdorfehs.is_initialized = true
+  sdorfehs.initialized = true
 
   s.in_modal = false
   s.send_modal = false
@@ -93,7 +90,6 @@ sdorfehs.start = function()
           return false
         end
 
-        s.menu:setTitle("◉")
         s.in_modal = true
         return true
       end
@@ -104,32 +100,28 @@ sdorfehs.start = function()
 
     -- in-modal key bindings
     s.in_modal = false
-    s.menu:setTitle("-")
-
-    print("in modal, key " .. key)
-    for k,v in pairs(flags) do
-      print(k)
-    end
 
     if flags:containExactly({ "shift" }) then
       key = string.upper(key)
     end
 
+    sdorfehs.ignore_events = true
+
     if nomod then
       if key == "tab" then
-        s.frame_focus(s.frame_previous)
+        s.frame_focus(s.frame_previous, true)
 
       elseif key == "left" then
-        s.frame_focus(s.frame_find(s.frame_current, s.direction.LEFT))
+        s.frame_focus(s.frame_find(s.frame_current, s.direction.LEFT), true)
       elseif key == "right" then
-        s.frame_focus(s.frame_find(s.frame_current, s.direction.RIGHT))
+        s.frame_focus(s.frame_find(s.frame_current, s.direction.RIGHT), true)
       elseif key == "up" then
-        s.frame_focus(s.frame_find(s.frame_current, s.direction.UP))
+        s.frame_focus(s.frame_find(s.frame_current, s.direction.UP), true)
       elseif key == "down" then
-        s.frame_focus(s.frame_find(s.frame_current, s.direction.DOWN))
+        s.frame_focus(s.frame_find(s.frame_current, s.direction.DOWN), true)
 
       elseif key == "space" then
-        s.frame_cycle(s.frame_current)
+        s.frame_cycle(s.frame_current, true)
 
       elseif key == "a" then
         s.send_modal = true
@@ -137,10 +129,18 @@ sdorfehs.start = function()
 
       elseif key == "c" then
         -- create terminal window
-        hs.osascript.applescript('tell application "iTerm4" to create window with default profile')
+        sdorfehs.ignore_events = false
+        local a = hs.appfinder.appFromName("kitty")
+        if a == nil then
+          hs.osascript.applescript('tell application "System Events" to ' ..
+            'keystroke "n" using {command down}')
+        else
+          a:setFrontmost(false)
+          hs.eventtap.keyStroke({ "cmd" }, "n")
+        end
 
       elseif key == "p" then
-        s.frame_reverse_cycle(s.frame_current)
+        s.frame_reverse_cycle(s.frame_current, true)
 
       elseif key == "R" then
         s.frame_remove(s.frame_current)
@@ -153,11 +153,16 @@ sdorfehs.start = function()
 
     elseif ctrl then
       if key == "space" then
-        s.frame_cycle(s.frame_current)
+        s.frame_cycle(s.frame_current, true)
+
+      elseif key == "a" then
+        s.frame_reverse_cycle(s.frame_current, true)
+
+      elseif key == "p" then
+        s.frame_reverse_cycle(s.frame_current, true)
 
       elseif key == "left" then
         s.frame_swap(s.frame_current, s.frame_find(s.frame_current, s.direction.LEFT))
-        print("swapping left")
       elseif key == "right" then
         s.frame_swap(s.frame_current, s.frame_find(s.frame_current, s.direction.RIGHT))
       elseif key == "up" then
@@ -167,11 +172,17 @@ sdorfehs.start = function()
       end
     end
 
+    hs.timer.doAfter(0.25, function()
+      sdorfehs.ignore_events = false
+    end)
+
     -- swallow event
     return true
   end):start()
 
-  sdorfehs.frame_focus(1)
+  sdorfehs.frame_vertical_split(1)
+  sdorfehs.frame_horizontal_split(2)
+  sdorfehs.frame_focus(1, true)
 end
 
 return sdorfehs

@@ -23,35 +23,15 @@ sdorfehs.inset = function(rect, ins)
     rect.h - (ins * 2))
 end
 
-sdorfehs.outline_timer = nil
-sdorfehs._outline = nil
-sdorfehs.outline = function(rect)
-  if sdorfehs.outline_timer ~= nil then
-    sdorfehs.outline_timer:stop()
-  end
-
-  if sdorfehs._outline ~= nil then
-    sdorfehs._outline:delete()
-    sdorfehs._outline = nil
-  end
-
-  sdorfehs._outline = hs.drawing.rectangle(rect)
-  sdorfehs._outline:setStrokeColor({ ["hex"] = sdorfehs.outline_color })
-  sdorfehs._outline:setFill(false)
-  sdorfehs._outline:setStrokeWidth(sdorfehs.outline_size)
-  sdorfehs._outline:show()
---  sdorfehs.outline_timer = hs.timer.doAfter(sdorfehs.outline_secs, function()
---    if sdorfehs._outline ~= nil then
---      sdorfehs._outline:delete()
---      sdorfehs._outline = nil
---    end
---    sdorfehs.outline_timer = nil
---  end)
-end
-
 sdorfehs.dump_wins = function(wins)
   for i, w in pairs(wins) do
     print("win[" .. i .. "] frame[" .. w["frame"] .. "] title:" ..
       w["win"]:title())
+  end
+end
+
+sdorfehs.dump_frames = function()
+  for i, f in pairs(sdorfehs.frames) do
+    print("frame[" .. f["id"] .. "]")
   end
 end
