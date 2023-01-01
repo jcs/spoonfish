@@ -25,13 +25,13 @@ end
 
 sdorfehs.dump_wins = function(wins)
   for i, w in pairs(wins) do
-    print("win[" .. i .. "] frame[" .. w["frame"] .. "] title:" ..
-      w["win"]:title())
+    print("win[" .. i .. "] space[" .. w["space"] .. "] frame[" ..
+      w["frame"] .. "] title:" .. w["win"]:title())
   end
 end
 
-sdorfehs.dump_frames = function()
-  for i, f in pairs(sdorfehs.frames) do
+sdorfehs.dump_frames = function(space_id)
+  for i, f in pairs(sdorfehs.spaces[space_id].frames) do
     print("frame[" .. f["id"] .. "]")
   end
 end

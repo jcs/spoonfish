@@ -7,16 +7,30 @@ require("sdorfehs/utils")
 
 -- configuration:
 sdorfehs.gap = 20
-sdorfehs.apps_to_watch = "^kitty"
+sdorfehs.terminal = "iTerm2"
+sdorfehs.apps_to_watch = {
+  "^" .. sdorfehs.terminal,
+  "^Firefox",
+  "^Music",
+  "^Photos",
+}
 sdorfehs.frame_message_secs = 1
-sdorfehs.outline_color = "#ff7f50"
-sdorfehs.outline_size = 8
+sdorfehs.border_color = "#000000"
+sdorfehs.border_size = 4
+sdorfehs.shadow_color = "#000000"
+sdorfehs.shadow_size = 8
 
 
--- frame rects, keyed by frame number
-sdorfehs.frames = {}
-sdorfehs.frame_previous = 1
-sdorfehs.frame_current = 1
+-- spaces and frame rects, keyed by frame number
+sdorfehs.spaces = {}
+for _, space_id in
+ pairs(hs.spaces.spacesForScreen(hs.screen.mainScreen():getUUID())) do
+  sdorfehs.spaces[space_id] = {}
+  sdorfehs.spaces[space_id].frames = {}
+  sdorfehs.spaces[space_id].frames[1] = hs.screen.mainScreen():frame()
+  sdorfehs.spaces[space_id].frame_previous = 1
+  sdorfehs.spaces[space_id].frame_current = 1
+end
 
 sdorfehs.direction = {
   LEFT = 1,
@@ -46,9 +60,6 @@ sdorfehs.start = function()
 
   s.log = hs.logger.new("sdorfehs", "debug")
 
-  -- initial frame
-  s.frames[1] = hs.screen.primaryScreen():frame()
-
   -- watch for new apps launched
   s.app_watcher = hs.application.watcher.new(s.app_meta_event)
   s.app_watcher:start()
@@ -58,6 +69,10 @@ sdorfehs.start = function()
   for i = 1, #apps do
     s.watch_app(apps[i])
   end
+
+  -- watch when switching spaces
+  s.spaces_watcher = hs.spaces.watcher.new(sdorfehs.spaces_event)
+  s.spaces_watcher:start()
 
   sdorfehs.initialized = true
 
@@ -69,6 +84,9 @@ sdorfehs.start = function()
     local flags = event:getFlags()
     local ctrl = flags:containExactly({ "ctrl" })
     local nomod = flags:containExactly({}) or flags:containExactly({ "shift" })
+
+    local cs = hs.spaces.activeSpaceOnScreen()
+    local space = s.spaces[cs]
 
     -- not sure why arrow keys come through with fn down
     if key == "up" or key == "down" or key == "left" or key == "right" then
@@ -107,68 +125,88 @@ sdorfehs.start = function()
 
     sdorfehs.ignore_events = true
 
-    if nomod then
-      if key == "tab" then
-        s.frame_focus(s.frame_previous, true)
-
-      elseif key == "left" then
-        s.frame_focus(s.frame_find(s.frame_current, s.direction.LEFT), true)
-      elseif key == "right" then
-        s.frame_focus(s.frame_find(s.frame_current, s.direction.RIGHT), true)
-      elseif key == "up" then
-        s.frame_focus(s.frame_find(s.frame_current, s.direction.UP), true)
-      elseif key == "down" then
-        s.frame_focus(s.frame_find(s.frame_current, s.direction.DOWN), true)
-
-      elseif key == "space" then
-        s.frame_cycle(s.frame_current, true)
-
-      elseif key == "a" then
+    if key == "tab" then
+      if nomod or ctrl then
+        s.frame_focus(cs, space.frame_previous, true)
+      end
+    elseif key == "left" then
+      if nomod then
+        s.frame_focus(cs,
+          s.frame_find(cs, space.frame_current, s.direction.LEFT), true)
+      elseif ctrl then
+        s.frame_swap(cs, space.frame_current,
+          s.frame_find(cs, space.frame_current, s.direction.LEFT))
+      end
+    elseif key == "right" then
+      if nomod then
+        s.frame_focus(cs,
+          s.frame_find(cs, space.frame_current, s.direction.RIGHT),
+          true)
+      elseif ctrl then
+        s.frame_swap(cs, spaces.frame_current,
+          s.frame_find(cs, space.frame_current, s.direction.RIGHT))
+      end
+    elseif key == "up" then
+      if nomod then
+        s.frame_focus(cs,
+          s.frame_find(cs, space.frame_current, s.direction.UP),
+          true)
+      elseif ctrl then
+        s.frame_swap(cs, space.frame_current,
+          s.frame_find(cs, space.frame_current, s.direction.UP))
+      end
+    elseif key == "down" then
+      if nomod then
+        s.frame_focus(cs,
+          s.frame_find(cs, space.frame_current, s.direction.DOWN),
+          true)
+      elseif ctrl then
+        s.frame_swap(cs, space.frame_current,
+          s.frame_find(cs, space.frame_current, s.direction.DOWN))
+      end
+    elseif key == "space" then
+      if nomod or ctrl then
+        s.frame_cycle(cs, space.frame_current, true)
+      end
+    elseif key == "a" then
+      if nomod then
         s.send_modal = true
         hs.eventtap.keyStroke({ "ctrl" }, "a")
-
-      elseif key == "c" then
+      else
+        s.frame_reverse_cycle(cs, space.frame_current, true)
+      end
+    elseif key == "c" then
+      if nomod then
         -- create terminal window
         sdorfehs.ignore_events = false
-        local a = hs.appfinder.appFromName("kitty")
+        local a = hs.appfinder.appFromName(sdorfehs.terminal)
         if a == nil then
-          hs.osascript.applescript('tell application "System Events" to ' ..
-            'keystroke "n" using {command down}')
+          hs.osascript.applescript("tell application \"" .. sdorfehs.terminal
+            .. "\" to activate")
         else
           a:setFrontmost(false)
           hs.eventtap.keyStroke({ "cmd" }, "n")
         end
-
-      elseif key == "p" then
-        s.frame_reverse_cycle(s.frame_current, true)
-
-      elseif key == "R" then
-        s.frame_remove(s.frame_current)
-
-      elseif key == "s" then
-        s.frame_horizontal_split(s.frame_current)
-      elseif key == "S" then
-        s.frame_vertical_split(s.frame_current)
       end
-
-    elseif ctrl then
-      if key == "space" then
-        s.frame_cycle(s.frame_current, true)
-
-      elseif key == "a" then
-        s.frame_reverse_cycle(s.frame_current, true)
-
-      elseif key == "p" then
-        s.frame_reverse_cycle(s.frame_current, true)
-
-      elseif key == "left" then
-        s.frame_swap(s.frame_current, s.frame_find(s.frame_current, s.direction.LEFT))
-      elseif key == "right" then
-        s.frame_swap(s.frame_current, s.frame_find(s.frame_current, s.direction.RIGHT))
-      elseif key == "up" then
-        s.frame_swap(s.frame_current, s.frame_find(s.frame_current, s.direction.UP))
-      elseif key == "down" then
-        s.frame_swap(s.frame_current, s.frame_find(s.frame_current, s.direction.DOWN))
+    elseif key == "p" then
+      if nomod or ctrl then
+        s.frame_reverse_cycle(cs, space.frame_current, true)
+      end
+    elseif key == "n" then
+      if nomod or ctrl then
+        s.frame_cycle(cs, space.frame_current, true)
+      end
+    elseif key == "R" then
+      if nomod then
+        s.frame_remove(cs, space.frame_current)
+      end
+    elseif key == "s" then
+      if nomod then
+        s.frame_horizontal_split(cs, space.frame_current)
+      end
+    elseif key == "S" then
+      if nomod then
+        s.frame_vertical_split(cs, space.frame_current)
       end
     end
 
@@ -180,9 +218,12 @@ sdorfehs.start = function()
     return true
   end):start()
 
-  sdorfehs.frame_vertical_split(1)
-  sdorfehs.frame_horizontal_split(2)
-  sdorfehs.frame_focus(1, true)
+  -- startup config
+  local cs = hs.spaces.activeSpaceOnScreen()
+
+  sdorfehs.frame_vertical_split(cs, 1)
+  sdorfehs.frame_horizontal_split(cs, 2)
+  sdorfehs.frame_focus(cs, 1, true)
 end
 
 return sdorfehs
