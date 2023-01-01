@@ -35,3 +35,8 @@ sdorfehs.dump_frames = function(space_id)
     print("frame[" .. f["id"] .. "]")
   end
 end
+
+sdorfehs.escape_pattern = function(str)
+  local quotepattern = '(['..("%^$().[]*+-?"):gsub("(.)", "%%%1")..'])'
+  return str:gsub(quotepattern, "%%%1")
+end

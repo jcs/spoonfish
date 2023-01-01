@@ -238,9 +238,6 @@ sdorfehs.frame_split = function(space_id, frame_id, vertical)
 
   -- we'll probably want to go to this frame on tab
   sdorfehs.spaces[space_id].frame_previous = new_frame
-  sdorfehs.log.d(" after split, focused frame now " ..
-    sdorfehs.spaces[space_id].frame_current .. ", previous " ..
-    sdorfehs.spaces[space_id].frame_previous)
 end
 
 -- swap the front-most windows of two frames

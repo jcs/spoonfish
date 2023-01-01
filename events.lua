@@ -12,7 +12,6 @@ sdorfehs.app_event = function(element, event)
 
   if event == sdorfehs.events.windowCreated then
     if element:isStandard() then
-      sdorfehs.log.i("new window created: " .. element:title())
       sdorfehs.watch_hswindow(element)
     end
   elseif event == sdorfehs.events.focusedWindowChanged then
@@ -63,7 +62,10 @@ sdorfehs.watch_app = function(hsapp)
 
   local matched = false
   for _, p in pairs(sdorfehs.apps_to_watch) do
-    if string.find(hsapp:title(), p) then
+    if not p:find("^%^") then
+      p = sdorfehs.escape_pattern(p)
+    end
+    if hsapp:title():find(p) then
       matched = true
       break
     end
@@ -101,6 +103,16 @@ end
 sdorfehs.watch_hswindow = function(hswin)
   if not hswin:isStandard() then
     return
+  end
+
+  for _, p in pairs(sdorfehs.windows_to_ignore) do
+    if not p:find("^%^") then
+      p = sdorfehs.escape_pattern(p)
+    end
+    if hswin:title():find(p) then
+      sdorfehs.log.i(" ignoring window " .. hswin:title() .. ", matches " .. p)
+      return
+    end
   end
 
   -- this is unfortunate but there's no space info in the window object

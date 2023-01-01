@@ -8,18 +8,25 @@ require("sdorfehs/utils")
 -- configuration:
 sdorfehs.gap = 20
 sdorfehs.terminal = "iTerm2"
-sdorfehs.apps_to_watch = {
-  "^" .. sdorfehs.terminal,
-  "^Firefox",
-  "^Music",
-  "^Photos",
-}
 sdorfehs.frame_message_secs = 1
 sdorfehs.frame_message_font_size = 18
 sdorfehs.border_color = "#000000"
 sdorfehs.border_size = 4
 sdorfehs.shadow_color = "#000000"
 sdorfehs.shadow_size = 8
+
+-- for these lists, anything not starting with ^ will be run through
+-- escape_pattern to escape dashes and other special characters, so be sure
+-- to escape such characters manually in ^-prefixed patterns
+sdorfehs.apps_to_watch = {
+  "^" .. sdorfehs.terminal,
+  "^Firefox",
+  "^Music",
+  "^Photos",
+}
+sdorfehs.windows_to_ignore = {
+  "Picture-in-Picture",
+}
 
 
 -- spaces and frame rects, keyed by frame number
