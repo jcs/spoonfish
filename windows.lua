@@ -1,6 +1,6 @@
 -- find a window table object from an hs.window object
-sdorfehs.window_find_by_hswindow = function(win)
-  for _, w in pairs(sdorfehs.windows) do
+spoonfish.window_find_by_hswindow = function(win)
+  for _, w in pairs(spoonfish.windows) do
     if w["win"] == win then
       return w
     end
@@ -10,8 +10,8 @@ sdorfehs.window_find_by_hswindow = function(win)
 end
 
 -- find a window table object from its hs.window id
-sdorfehs.window_find_by_id = function(id)
-  for _, w in pairs(sdorfehs.windows) do
+spoonfish.window_find_by_id = function(id)
+  for _, w in pairs(spoonfish.windows) do
     if w["win"]:id() == id then
       return w
     end
@@ -21,7 +21,7 @@ sdorfehs.window_find_by_id = function(id)
 end
 
 -- move a window to fit its frame, or hide it if in frame 0
-sdorfehs.window_reframe = function(win)
+spoonfish.window_reframe = function(win)
   if win == nil or win == {} then
     error("bogus window passed")
     return
@@ -32,32 +32,32 @@ sdorfehs.window_reframe = function(win)
     return
   end
 
-  local iframe = sdorfehs.frame_with_gap(win["space"], win["frame"])
+  local iframe = spoonfish.frame_with_gap(win["space"], win["frame"])
   win["win"]:move(iframe, nil, true, 0)
 
   if win["space"] == hs.spaces.activeSpaceOnScreen() then
-    sdorfehs.window_reborder(win)
+    spoonfish.window_reborder(win)
   end
 end
 
 -- redraw a border and shadow on a window
-sdorfehs.window_reborder = function(win)
+spoonfish.window_reborder = function(win)
   if win == nil or win == {} then
     error("bogus window passed")
     return
   end
 
-  if sdorfehs.border_size == 0 then
+  if spoonfish.border_size == 0 then
     return
   end
 
   for _, w in pairs({ "shadow", "border" }) do
-    local iframe = sdorfehs.frame_with_gap(win["space"], win["frame"])
-    iframe = sdorfehs.inset(iframe, -(sdorfehs.border_size))
+    local iframe = spoonfish.frame_with_gap(win["space"], win["frame"])
+    iframe = spoonfish.inset(iframe, -(spoonfish.border_size))
 
     if w == "shadow" then
-      iframe.x = iframe.x + sdorfehs.shadow_size
-      iframe.y = iframe.y + sdorfehs.shadow_size
+      iframe.x = iframe.x + spoonfish.shadow_size
+      iframe.y = iframe.y + spoonfish.shadow_size
     end
 
     if win[w] == nil then
@@ -69,9 +69,9 @@ sdorfehs.window_reborder = function(win)
 
     local color
     if w == "border" then
-      color = sdorfehs.border_color
+      color = spoonfish.border_color
     elseif w == "shadow" then
-      color = sdorfehs.shadow_color
+      color = spoonfish.shadow_color
     end
     win[w]:setStrokeColor({ ["hex"] = color })
     win[w]:setFill(true)
@@ -82,7 +82,7 @@ sdorfehs.window_reborder = function(win)
 end
 
 -- remove a window from the stack and bring up a new window in the frame
-sdorfehs.window_remove = function(win)
+spoonfish.window_remove = function(win)
   local frame_id = win["frame"]
   if win["border"] ~= nil then
     win["border"]:delete()
@@ -92,47 +92,47 @@ sdorfehs.window_remove = function(win)
     win["shadow"]:delete()
     win["shadow"] = nil
   end
-  sdorfehs.window_restack(win, sdorfehs.position.REMOVE)
+  spoonfish.window_restack(win, spoonfish.position.REMOVE)
   if frame_id ~= 0 then
-    sdorfehs.frame_cycle(win["space"], frame_id, false)
+    spoonfish.frame_cycle(win["space"], frame_id, false)
   end
 end
 
 -- move a window to the front or back of the window stack (or remove it)
-sdorfehs.window_restack = function(win, pos)
+spoonfish.window_restack = function(win, pos)
   if pos == nil then
     error("invalid position argument")
     return
   end
 
   local new_stack = {}
-  for _, w in ipairs(sdorfehs.windows) do
+  for _, w in ipairs(spoonfish.windows) do
     if w == win then
-      if pos == sdorfehs.position.FRONT then
+      if pos == spoonfish.position.FRONT then
         table.insert(new_stack, 1, w)
       end
     else
       table.insert(new_stack, w)
     end
   end
-  if pos == sdorfehs.position.BACK then
+  if pos == spoonfish.position.BACK then
     table.insert(new_stack, win)
   end
-  sdorfehs.windows = new_stack
+  spoonfish.windows = new_stack
 end
 
 -- restore a window but don't bother moving to its frame, window_reframe will
-sdorfehs.window_show = function(win)
+spoonfish.window_show = function(win)
   if win["win"]:isMinimized() then
     win["win"]:unminimize()
   end
 end
 
 -- return a table of windows not first in any frame
-sdorfehs.windows_not_visible = function(space_id)
+spoonfish.windows_not_visible = function(space_id)
   local wins = {}
   local topwins = {}
-  for _, w in ipairs(sdorfehs.windows) do
+  for _, w in ipairs(spoonfish.windows) do
     if w["space"] == space_id then
       if topwins[w["frame"]] == nil then
         topwins[w["frame"]] = w

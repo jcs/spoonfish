@@ -1,72 +1,74 @@
-sdorfehs = {}
+spoonfish = {}
 
-require("sdorfehs/frames")
-require("sdorfehs/windows")
-require("sdorfehs/events")
-require("sdorfehs/utils")
+require("spoonfish/frames")
+require("spoonfish/windows")
+require("spoonfish/events")
+require("spoonfish/utils")
 
--- configuration:
-sdorfehs.gap = 20
-sdorfehs.terminal = "iTerm2"
-sdorfehs.frame_message_secs = 1
-sdorfehs.frame_message_font_size = 18
-sdorfehs.border_color = "#000000"
-sdorfehs.border_size = 4
-sdorfehs.shadow_color = "#000000"
-sdorfehs.shadow_size = 8
+
+-- default configuration, can be overridden in loading init.lua before calling
+-- spoonfish.start()
+spoonfish.gap = 22
+spoonfish.terminal = "iTerm2"
+spoonfish.frame_message_secs = 1
+spoonfish.frame_message_font_size = 18
+spoonfish.border_color = "#000000"
+spoonfish.border_size = 4
+spoonfish.shadow_color = "#000000"
+spoonfish.shadow_size = 8
 
 -- for these lists, anything not starting with ^ will be run through
 -- escape_pattern to escape dashes and other special characters, so be sure
 -- to escape such characters manually in ^-prefixed patterns
-sdorfehs.apps_to_watch = {
-  "^" .. sdorfehs.terminal,
+spoonfish.apps_to_watch = {
+  "^" .. spoonfish.terminal,
   "^Firefox",
   "^Music",
   "^Photos",
 }
-sdorfehs.windows_to_ignore = {
+spoonfish.windows_to_ignore = {
   "Picture-in-Picture",
 }
 
 
--- spaces and frame rects, keyed by frame number
-sdorfehs.spaces = {}
-for _, space_id in
- pairs(hs.spaces.spacesForScreen(hs.screen.mainScreen():getUUID())) do
-  sdorfehs.spaces[space_id] = {}
-  sdorfehs.spaces[space_id].frames = {}
-  sdorfehs.spaces[space_id].frames[1] = hs.screen.mainScreen():frame()
-  sdorfehs.spaces[space_id].frame_previous = 1
-  sdorfehs.spaces[space_id].frame_current = 1
-end
-
-sdorfehs.direction = {
-  LEFT = 1,
-  RIGHT = 2,
-  DOWN = 3,
-  UP = 4,
-}
-
-sdorfehs.position = {
-  FRONT = 1,
-  BACK = 2,
-  REMOVE = 3,
-}
-
-sdorfehs.initialized = false
-sdorfehs.events = hs.uielement.watcher
-
--- windows, array by window stack order
-sdorfehs.windows = {}
-
--- apps, keyed by pid
-sdorfehs.apps = {}
-
 -- let's go
-sdorfehs.start = function()
-  local s = sdorfehs
+spoonfish.start = function()
+  local s = spoonfish
 
-  s.log = hs.logger.new("sdorfehs", "debug")
+  -- spaces and frame rects, keyed by frame number
+  s.spaces = {}
+  for _, space_id in
+   pairs(hs.spaces.spacesForScreen(hs.screen.mainScreen():getUUID())) do
+    s.spaces[space_id] = {}
+    s.spaces[space_id].frames = {}
+    s.spaces[space_id].frames[1] = hs.screen.mainScreen():frame()
+    s.spaces[space_id].frame_previous = 1
+    s.spaces[space_id].frame_current = 1
+  end
+
+  s.direction = {
+    LEFT = 1,
+    RIGHT = 2,
+    DOWN = 3,
+    UP = 4,
+  }
+
+  s.position = {
+    FRONT = 1,
+    BACK = 2,
+    REMOVE = 3,
+  }
+
+  s.initialized = false
+  s.events = hs.uielement.watcher
+
+  -- windows, array by window stack order
+  s.windows = {}
+
+  -- apps, keyed by pid
+  s.apps = {}
+
+  s.log = hs.logger.new("spoonfish", "debug")
 
   -- watch for new apps launched
   s.app_watcher = hs.application.watcher.new(s.app_meta_event)
@@ -79,10 +81,10 @@ sdorfehs.start = function()
   end
 
   -- watch when switching spaces
-  s.spaces_watcher = hs.spaces.watcher.new(sdorfehs.spaces_event)
+  s.spaces_watcher = hs.spaces.watcher.new(spoonfish.spaces_event)
   s.spaces_watcher:start()
 
-  sdorfehs.initialized = true
+  spoonfish.initialized = true
 
   s.in_modal = false
   s.send_modal = false
@@ -132,7 +134,7 @@ sdorfehs.start = function()
       key = string.upper(key)
     end
 
-    sdorfehs.ignore_events = true
+    spoonfish.ignore_events = true
 
     if key == "tab" then
       if nomod or ctrl then
@@ -187,10 +189,10 @@ sdorfehs.start = function()
     elseif key == "c" then
       if nomod then
         -- create terminal window
-        sdorfehs.ignore_events = false
-        local a = hs.appfinder.appFromName(sdorfehs.terminal)
+        spoonfish.ignore_events = false
+        local a = hs.appfinder.appFromName(spoonfish.terminal)
         if a == nil then
-          hs.osascript.applescript("tell application \"" .. sdorfehs.terminal
+          hs.osascript.applescript("tell application \"" .. spoonfish.terminal
             .. "\" to activate")
         else
           a:setFrontmost(false)
@@ -220,7 +222,7 @@ sdorfehs.start = function()
     end
 
     hs.timer.doAfter(0.25, function()
-      sdorfehs.ignore_events = false
+      spoonfish.ignore_events = false
     end)
 
     -- swallow event
@@ -230,9 +232,9 @@ sdorfehs.start = function()
   -- startup config
   local cs = hs.spaces.activeSpaceOnScreen()
 
-  sdorfehs.frame_vertical_split(cs, 1)
-  sdorfehs.frame_horizontal_split(cs, 2)
-  sdorfehs.frame_focus(cs, 1, true)
+  spoonfish.frame_vertical_split(cs, 1)
+  spoonfish.frame_horizontal_split(cs, 2)
+  spoonfish.frame_focus(cs, 1, true)
 end
 
-return sdorfehs
+return spoonfish
