@@ -15,6 +15,7 @@ sdorfehs.apps_to_watch = {
   "^Photos",
 }
 sdorfehs.frame_message_secs = 1
+sdorfehs.frame_message_font_size = 18
 sdorfehs.border_color = "#000000"
 sdorfehs.border_size = 4
 sdorfehs.shadow_color = "#000000"
@@ -79,7 +80,8 @@ sdorfehs.start = function()
   s.in_modal = false
   s.send_modal = false
 
-  s.eventtap = hs.eventtap.new({ hs.eventtap.event.types.keyDown }, function(event)
+  s.eventtap = hs.eventtap.new({ hs.eventtap.event.types.keyDown },
+   function(event)
     local key = hs.keycodes.map[event:getKeyCode()]
     local flags = event:getFlags()
     local ctrl = flags:containExactly({ "ctrl" })

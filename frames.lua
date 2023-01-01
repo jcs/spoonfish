@@ -322,10 +322,10 @@ sdorfehs.frame_message = function(space_id, frame_id, message)
     return
   end
 
-  local fontSize = 18
-  local textFrame = hs.drawing.getTextDrawingSize(message, { size = fontSize })
+  local textFrame = hs.drawing.getTextDrawingSize(message,
+    { size = sdorfehs.frame_message_font_size })
   local lwidth = textFrame.w + 30
-  local lheight = textFrame.h + 6
+  local lheight = textFrame.h + 10
 
   sdorfehs._frame_message = hs.canvas.new {
     x = frame.x + (frame.w / 2) - (lwidth / 2),
@@ -338,17 +338,25 @@ sdorfehs.frame_message = function(space_id, frame_id, message)
     id = "1",
     type = "rectangle",
     action = "fill",
-    center = { x = lwidth / 2, y = lheight / 2, },
+    center = {
+      x = lwidth / 2,
+      y = lheight / 2,
+    },
     fillColor = { green = 0, blue = 0, red = 0, alpha = 0.9 },
     roundedRectRadii = { xRadius = 15, yRadius = 15 },
   }
   sdorfehs._frame_message[2] = {
     id = "2",
     type = "text",
-    frame = { x = 0, y = 3, h = "100%", w = "100%" },
+    frame = {
+      x = 0,
+      y = ((lheight - sdorfehs.frame_message_font_size) / 2) - 1,
+      h = "100%",
+      w = "100%",
+    },
     textAlignment = "center",
     textColor = { white = 1.0 },
-    textSize = fontSize,
+    textSize = sdorfehs.frame_message_font_size,
     text = message,
   }
 
