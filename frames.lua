@@ -10,6 +10,7 @@ sdorfehs.frame_capture = function(space_id, frame_id, hswin)
     ["win"] = hswin,
     ["frame"] = frame_id,
     ["space"] = space_id,
+    ["app_pid"] = hswin:application():pid(),
   }
   table.insert(sdorfehs.windows, win)
   sdorfehs.window_reframe(win)

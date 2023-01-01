@@ -30,31 +30,40 @@ sdorfehs.app_event = function(element, event)
 end
 
 -- callback for .app_watcher, informing about a new or closed app
-sdorfehs.app_meta_event = function(name, event, app)
+sdorfehs.app_meta_event = function(name, event, hsapp)
   if event == hs.application.watcher.launched then
-    sdorfehs.watch_app(app)
+    sdorfehs.watch_app(hsapp)
   elseif event == hs.application.watcher.terminated then
-    local appWatcher = sdorfehs.apps[app:pid()]
-    if appWatcher then
-      appWatcher.watcher:stop()
-      for id, watcher in pairs(appWatcher.windows) do
-        -- TODO
-        -- watcher:stop()
-      end
-      sdorfehs.apps[app:pid()] = nil
+    sdorfehs.log.i("app " .. hsapp:pid() .. " terminated")
+
+    local app = sdorfehs.apps[hsapp:pid()]
+    if app == nil then
+      return
     end
+
+    app["watcher"]:stop()
+
+    -- checking w["win"]:application() will probably fail by this point
+    for _, w in ipairs(sdorfehs.windows) do
+      if w["app_pid"] == hsapp:pid() then
+        sdorfehs.log.i("cleaning up window " .. w["win"]:title())
+        sdorfehs.window_remove(w)
+      end
+    end
+
+    sdorfehs.apps[hsapp:pid()] = nil
   end
 end
 
 -- watch an application to be notififed when it creates a new window
-sdorfehs.watch_app = function(app)
-  if sdorfehs.apps[app:pid()] then
+sdorfehs.watch_app = function(hsapp)
+  if sdorfehs.apps[hsapp:pid()] then
     return
   end
 
   local matched = false
   for _, p in pairs(sdorfehs.apps_to_watch) do
-    if string.find(app:title(), p) then
+    if string.find(hsapp:title(), p) then
       matched = true
       break
     end
@@ -63,17 +72,16 @@ sdorfehs.watch_app = function(app)
     end
   end
   if not matched then
-    -- sdorfehs.log.i("not watching app[" .. app:pid() .. "] " .. app:title())
+    -- sdorfehs.log.i("not watching app[" .. hsapp:pid() .. "] " .. hsapp:title())
     return
   end
 
-  sdorfehs.log.i("watching app[" .. app:pid() .. "] " .. app:title() .. " (" ..
-    app:name() .. ")")
+  sdorfehs.log.i("watching app[" .. hsapp:pid() .. "] " .. hsapp:title() ..
+    " (" ..  hsapp:name() .. ")")
 
-  local watcher = app:newWatcher(sdorfehs.app_event)
-  sdorfehs.apps[app:pid()] = {
+  local watcher = hsapp:newWatcher(sdorfehs.app_event)
+  sdorfehs.apps[hsapp:pid()] = {
     watcher = watcher,
-    windows = {},
   }
   watcher:start({
     sdorfehs.events.windowCreated,
@@ -83,7 +91,7 @@ sdorfehs.watch_app = function(app)
   })
 
   -- watch windows that already exist
-  local wf = hs.window.filter.new(app:name())
+  local wf = hs.window.filter.new(hsapp:name())
   for _, w in pairs(wf:getWindows()) do
     sdorfehs.watch_hswindow(w)
   end

@@ -35,7 +35,7 @@ sdorfehs.window_reframe = function(win)
   local iframe = sdorfehs.frame_with_gap(win["space"], win["frame"])
   win["win"]:move(iframe, nil, true, 0)
 
-  if win["frame"] == hs.spaces.activeSpaceOnScreen() then
+  if win["space"] == hs.spaces.activeSpaceOnScreen() then
     sdorfehs.window_reborder(win)
   end
 end
