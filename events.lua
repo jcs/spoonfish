@@ -11,9 +11,7 @@ spoonfish.app_event = function(element, event)
   end
 
   if event == spoonfish.events.windowCreated then
-    if element:isStandard() then
-      spoonfish.watch_hswindow(element)
-    end
+    spoonfish.watch_hswindow(element)
   elseif event == spoonfish.events.focusedWindowChanged then
     local win = spoonfish.window_find_by_id(element:id())
     if win ~= nil then
@@ -102,6 +100,16 @@ end
 -- watch a hs.window object to be notified when it is closed or moved
 spoonfish.watch_hswindow = function(hswin)
   if not hswin:isStandard() then
+    spoonfish.log.i(" ignoring non-standard window " .. hswin:title())
+    return
+  end
+
+  -- if the window looks like a dialog, ignore it
+  if hswin:size().w < (hs.screen.mainScreen():frame().w / 3) and
+   hswin:size().h < (hs.screen.mainScreen():frame().h / 2) then
+    spoonfish.log.i(" ignoring dialog-looking window " .. hswin:title())
+    -- but we can at least try to help
+    hswin:centerOnScreen()
     return
   end
 
