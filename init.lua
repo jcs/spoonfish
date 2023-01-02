@@ -155,7 +155,7 @@ spoonfish.start = function()
           s.frame_find(cs, space.frame_current, s.direction.RIGHT),
           true)
       elseif ctrl then
-        s.frame_swap(cs, spaces.frame_current,
+        s.frame_swap(cs, space.frame_current,
           s.frame_find(cs, space.frame_current, s.direction.RIGHT))
       end
     elseif key == "up" then
