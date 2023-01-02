@@ -23,11 +23,12 @@ spoonfish.shadow_size = 8
 spoonfish.apps_to_watch = {
   "^" .. spoonfish.terminal,
   "^Firefox",
-  "^Music",
-  "^Photos",
 }
 spoonfish.windows_to_ignore = {
   "Picture-in-Picture",
+  "^Open ",
+  "^Save ",
+  "^Export",
 }
 
 
