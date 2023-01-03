@@ -229,13 +229,6 @@ spoonfish.start = function()
     -- swallow event
     return true
   end):start()
-
-  -- startup config
-  local cs = hs.spaces.activeSpaceOnScreen()
-
-  spoonfish.frame_vertical_split(cs, 1)
-  spoonfish.frame_horizontal_split(cs, 2)
-  spoonfish.frame_focus(cs, 1, true)
 end
 
 return spoonfish
