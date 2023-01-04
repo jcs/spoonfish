@@ -14,13 +14,13 @@ spoonfish.app_event = function(element, event)
     spoonfish.watch_hswindow(element)
   elseif event == spoonfish.events.focusedWindowChanged then
     local win = spoonfish.window_find_by_id(element:id())
-    if win ~= nil then
+    if win then
       -- TODO: don't do this when it's in response to a window destroying
       spoonfish.frame_focus(win["space"], win["frame"], false)
     end
   elseif event == spoonfish.events.windowResized then
     local win = spoonfish.window_find_by_id(element:id())
-    if win ~= nil then
+    if win then
       spoonfish.window_reframe(win)
     end
   end
@@ -72,7 +72,6 @@ spoonfish.watch_app = function(hsapp)
     end
   end
   if not matched then
-    -- spoonfish.log.i("not watching app[" .. hsapp:pid() .. "] " .. hsapp:title())
     return
   end
 
@@ -172,8 +171,6 @@ spoonfish.spaces_event = function(new_space)
   if new_space == -1 then
     new_space = hs.spaces.activeSpaceOnScreen()
   end
-
-  spoonfish.log.d("switched to space " .. new_space)
 
   if spoonfish.spaces[new_space] then
     spoonfish.frame_focus(new_space, spoonfish.spaces[new_space].frame_current,

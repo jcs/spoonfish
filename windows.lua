@@ -32,7 +32,7 @@ spoonfish.window_reframe = function(win)
     return
   end
 
-  local iframe = spoonfish.frame_with_gap(win["space"], win["frame"])
+  local iframe = spoonfish.frame_rect_with_gap(win["space"], win["frame"])
   win["win"]:move(iframe, nil, true, 0)
 
   if win["space"] == hs.spaces.activeSpaceOnScreen() then
@@ -52,20 +52,20 @@ spoonfish.window_reborder = function(win)
   end
 
   for _, w in pairs({ "shadow", "border" }) do
-    local iframe = spoonfish.frame_with_gap(win["space"], win["frame"])
-    iframe = spoonfish.inset(iframe, -(spoonfish.border_size))
+    local irect = spoonfish.frame_rect_with_gap(win["space"], win["frame"])
+    irect = spoonfish.inset(irect, -(spoonfish.border_size))
 
     if w == "shadow" then
-      iframe.x = iframe.x + spoonfish.shadow_size
-      iframe.y = iframe.y + spoonfish.shadow_size
+      irect.x = irect.x + spoonfish.shadow_size
+      irect.y = irect.y + spoonfish.shadow_size
     end
 
     if win[w] == nil then
-      win[w] = hs.drawing.rectangle(iframe)
+      win[w] = hs.drawing.rectangle(irect)
     else
-      win[w]:setFrame(iframe)
+      win[w]:setFrame(irect)
     end
-    win[w]:setLevel(hs.drawing.windowLevels.desktopIcon) --floating)
+    win[w]:setLevel(hs.drawing.windowLevels.desktopIcon)
 
     local color
     if w == "border" then

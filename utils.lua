@@ -1,3 +1,11 @@
+table.copy = function(tab)
+  local ret = {}
+  for k, v in pairs(tab) do
+    ret[k] = v
+  end
+  return ret
+end
+
 -- come on, lua
 table.count = function(tab)
   local c = 0
@@ -5,6 +13,31 @@ table.count = function(tab)
     c = c + 1
   end
   return c
+end
+
+table.keys = function(tab)
+  local ret = {}
+  for k, _ in pairs(tab) do
+    ret[#ret + 1] = k
+  end
+  return ret
+end
+
+spoonfish.dir_from_string = function(str)
+  lstr = str:lower()
+
+  if lstr == "left" then
+    return spoonfish.direction.LEFT
+  elseif lstr == "right" then
+    return spoonfish.direction.RIGHT
+  elseif lstr == "up" then
+    return spoonfish.direction.UP
+  elseif lstr == "down" then
+    return spoonfish.direction.DOWN
+  else
+    error("dir_from_string: invalid direction")
+    return nil
+  end
 end
 
 spoonfish.last_alert = nil
@@ -39,4 +72,9 @@ end
 spoonfish.escape_pattern = function(str)
   local quotepattern = '(['..("%^$().[]*+-?"):gsub("(.)", "%%%1")..'])'
   return str:gsub(quotepattern, "%%%1")
+end
+
+spoonfish.rect_s = function(rect)
+  return "{x:" .. rect.x .. " y:" .. rect.y .. " w:" .. rect.w .. " h:" ..
+    rect.h .. "}"
 end

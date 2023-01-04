@@ -8,14 +8,28 @@ require("spoonfish/utils")
 
 -- default configuration, can be overridden in loading init.lua before calling
 -- spoonfish.start()
-spoonfish.gap = 22
-spoonfish.terminal = "iTerm2"
-spoonfish.frame_message_secs = 1
-spoonfish.frame_message_font_size = 18
+
+-- prefix key (with control)
+spoonfish.prefix_key = "a"
+
+-- set sizes to 0 to disable
 spoonfish.border_color = "#000000"
 spoonfish.border_size = 4
 spoonfish.shadow_color = "#000000"
 spoonfish.shadow_size = 8
+
+-- space to put between windows in adjoining frames
+spoonfish.gap = 22
+
+-- program to send 'new window' to for 'c' command
+spoonfish.terminal = "iTerm2"
+
+-- for per-frame messages
+spoonfish.frame_message_secs = 1
+spoonfish.frame_message_font_size = 18
+
+-- increment to resize interactively
+spoonfish.resize_unit = 10
 
 -- for these lists, anything not starting with ^ will be run through
 -- escape_pattern to escape dashes and other special characters, so be sure
@@ -35,17 +49,6 @@ spoonfish.windows_to_ignore = {
 -- let's go
 spoonfish.start = function()
   local s = spoonfish
-
-  -- spaces and frame rects, keyed by frame number
-  s.spaces = {}
-  for _, space_id in
-   pairs(hs.spaces.spacesForScreen(hs.screen.mainScreen():getUUID())) do
-    s.spaces[space_id] = {}
-    s.spaces[space_id].frames = {}
-    s.spaces[space_id].frames[1] = hs.screen.mainScreen():frame()
-    s.spaces[space_id].frame_previous = 1
-    s.spaces[space_id].frame_current = 1
-  end
 
   s.direction = {
     LEFT = 1,
@@ -69,7 +72,27 @@ spoonfish.start = function()
   -- apps, keyed by pid
   s.apps = {}
 
+  -- debugging flags
+  s.debug_frames = false
+
   s.log = hs.logger.new("spoonfish", "debug")
+
+  -- spaces and frame rects, keyed by frame number
+  s.spaces = {}
+  for _, space_id in
+   pairs(hs.spaces.spacesForScreen(hs.screen.mainScreen():getUUID())) do
+    s.spaces[space_id] = { rect = hs.screen.mainScreen():frame() }
+    s.spaces[space_id].frames = {}
+    s.spaces[space_id].frames[1] = {
+      rect = hs.screen.mainScreen():frame(),
+    }
+    s.spaces[space_id].frame_previous = 1
+    s.spaces[space_id].frame_current = 1
+
+    if space_id == hs.spaces.activeSpaceOnScreen() then
+      spoonfish.draw_frames(space_id)
+    end
+  end
 
   -- watch for new apps launched
   s.app_watcher = hs.application.watcher.new(s.app_meta_event)
@@ -85,10 +108,10 @@ spoonfish.start = function()
   s.spaces_watcher = hs.spaces.watcher.new(spoonfish.spaces_event)
   s.spaces_watcher:start()
 
-  spoonfish.initialized = true
-
+  s.initialized = true
   s.in_modal = false
   s.send_modal = false
+  s.resizing = false
 
   s.eventtap = hs.eventtap.new({ hs.eventtap.event.types.keyDown },
    function(event)
@@ -113,8 +136,26 @@ spoonfish.start = function()
       return false
     end
 
+    if s.resizing then
+      if key == "down" or key == "left" or key == "right" or key == "up" then
+        if nomod then
+          s.frame_resize(cs, space.frame_current, s.dir_from_string(key))
+        end
+      else
+        -- any other key will exit
+        s.resizing = false
+        s.frame_message(cs, space.frame_current, nil)
+        return true
+      end
+
+      -- redisplay the frame message as it probably just changed size
+      s.frame_message(cs, space.frame_current, "Resize frame", true)
+
+      return true
+    end
+
     if not s.in_modal then
-      if ctrl and key == "a" then
+      if ctrl and key == spoonfish.prefix_key then
         if s.send_modal then
           s.send_modal = false
           return false
@@ -128,62 +169,40 @@ spoonfish.start = function()
       return false
     end
 
-    -- in-modal key bindings
+    -- we're in modal, so anything after this point will reset it
     s.in_modal = false
 
+    -- in-modal key bindings
     if flags:containExactly({ "shift" }) then
       key = string.upper(key)
     end
 
-    spoonfish.ignore_events = true
+    s.ignore_events = true
+
+    -- TODO: put these in a table for dynamic reassignment
 
     if key == "tab" then
       if nomod or ctrl then
         s.frame_focus(cs, space.frame_previous, true)
       end
-    elseif key == "left" then
-      if nomod then
-        s.frame_focus(cs,
-          s.frame_find(cs, space.frame_current, s.direction.LEFT), true)
-      elseif ctrl then
-        s.frame_swap(cs, space.frame_current,
-          s.frame_find(cs, space.frame_current, s.direction.LEFT))
-      end
-    elseif key == "right" then
-      if nomod then
-        s.frame_focus(cs,
-          s.frame_find(cs, space.frame_current, s.direction.RIGHT),
-          true)
-      elseif ctrl then
-        s.frame_swap(cs, space.frame_current,
-          s.frame_find(cs, space.frame_current, s.direction.RIGHT))
-      end
-    elseif key == "up" then
-      if nomod then
-        s.frame_focus(cs,
-          s.frame_find(cs, space.frame_current, s.direction.UP),
-          true)
-      elseif ctrl then
-        s.frame_swap(cs, space.frame_current,
-          s.frame_find(cs, space.frame_current, s.direction.UP))
-      end
-    elseif key == "down" then
-      if nomod then
-        s.frame_focus(cs,
-          s.frame_find(cs, space.frame_current, s.direction.DOWN),
-          true)
-      elseif ctrl then
-        s.frame_swap(cs, space.frame_current,
-          s.frame_find(cs, space.frame_current, s.direction.DOWN))
+    elseif key == "down" or key == "left" or key == "right" or key == "up" then
+      local touching = s.frame_find_touching(cs, space.frame_current,
+        s.dir_from_string(key))
+      if touching[1] then
+        if nomod then
+          s.frame_focus(cs, touching[1], true)
+        elseif ctrl then
+          s.frame_swap(cs, space.frame_current, touching[1])
+        end
       end
     elseif key == "space" then
       if nomod or ctrl then
         s.frame_cycle(cs, space.frame_current, true)
       end
-    elseif key == "a" then
+    elseif key == spoonfish.prefix_key then
       if nomod then
         s.send_modal = true
-        hs.eventtap.keyStroke({ "ctrl" }, "a")
+        hs.eventtap.keyStroke({ "ctrl" }, spoonfish.prefix_key)
       else
         s.frame_reverse_cycle(cs, space.frame_current, true)
       end
@@ -207,6 +226,10 @@ spoonfish.start = function()
     elseif key == "n" then
       if nomod or ctrl then
         s.frame_cycle(cs, space.frame_current, true)
+      end
+    elseif key == "r" then
+      if nomod then
+        s.frame_resize_interactively(cs, space.frame_current)
       end
     elseif key == "R" then
       if nomod then
