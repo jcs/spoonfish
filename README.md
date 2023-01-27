@@ -16,7 +16,6 @@ Then add it to your ~/.hammerspoon/init.lua script, along with any startup
 configuration/commands:
 
 	local spoonfish = require("spoonfish/init")
-	spoonfish.start()
 
 	spoonfish.apps_to_watch = {
 	  "^" .. spoonfish.terminal,
@@ -27,6 +26,8 @@ configuration/commands:
 	  "^Android Studio",
 	}
 	table.insert(spoonfish.windows_to_ignore, "Extension: (Open in Browser)")
+
+	spoonfish.start()
 
 	local cs = hs.spaces.activeSpaceOnScreen()
 	spoonfish.frame_vertical_split(cs, 1)
