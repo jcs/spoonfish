@@ -60,6 +60,10 @@ spoonfish.watch_app = function(hsapp)
 
   local matched = false
   for _, p in pairs(spoonfish.apps_to_watch) do
+    if p == "" then
+      matched = true
+      break
+    end
     if not p:find("^%^") then
       p = spoonfish.escape_pattern(p)
     end
@@ -67,11 +71,23 @@ spoonfish.watch_app = function(hsapp)
       matched = true
       break
     end
-    if matched then
+  end
+  for _, p in pairs(spoonfish.apps_to_ignore) do
+    if p == "" then
+      matched = false
+      break
+    end
+    if not p:find("^%^") then
+      p = spoonfish.escape_pattern(p)
+    end
+    if hsapp:title():find(p) then
+      matched = false
       break
     end
   end
   if not matched then
+    spoonfish.log.i("ignoring app[" .. hsapp:pid() .. "] " .. hsapp:title() ..
+      " (" ..  hsapp:name() .. ")")
     return
   end
 
@@ -98,8 +114,7 @@ end
 
 -- watch a hs.window object to be notified when it is closed or moved
 spoonfish.watch_hswindow = function(hswin)
-  if not hswin:isStandard() then
-    spoonfish.log.i(" ignoring non-standard window " .. hswin:title())
+  if hswin == nil or not hswin:isStandard() then
     return
   end
 

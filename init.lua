@@ -38,6 +38,9 @@ spoonfish.apps_to_watch = {
   "^" .. spoonfish.terminal,
   "^Firefox",
 }
+-- these override apps_to_watch
+spoonfish.apps_to_ignore = {
+}
 spoonfish.windows_to_ignore = {
   "Picture-in-Picture",
   "^Open ",
